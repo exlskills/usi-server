@@ -1,6 +1,8 @@
 import * as UserFetch from '../db-handlers/user-fetch';
 import * as CourseFetch from '../db-handlers/course-fetch';
-import { fromGlobalId } from '../utils/graphql-id-parser';
+import {
+  fromGlobalId
+} from '../utils/graphql-id-parser';
 import * as CardInteractionFetch from '../db-handlers/card-interaction-fetch';
 import UserSysInteraction from '../db-models/user-sys-interaction-model';
 import QuestionInteraction from '../db-models/question-interaction-model';
@@ -89,8 +91,7 @@ export const course_unit_last_access = async data => {
             FindUnit.doc_id = unitId;
             await user.save();
           } else {
-            let araryDocRefPush = [
-              {
+            let araryDocRefPush = [{
                 level: 'course',
                 doc_id: courseId
               },
@@ -103,8 +104,7 @@ export const course_unit_last_access = async data => {
           }
         } else {
           let array_last_accessed_item = {
-            embedded_doc_refs: [
-              {
+            embedded_doc_refs: [{
                 level: 'course',
                 doc_id: courseId
               },
@@ -120,8 +120,7 @@ export const course_unit_last_access = async data => {
       } else {
         let array_last_accessed_item = {
           EmbeddedDocRef: {
-            embedded_doc_refs: [
-              {
+            embedded_doc_refs: [{
                 level: 'course',
                 doc_id: courseId
               },
@@ -136,30 +135,30 @@ export const course_unit_last_access = async data => {
         user.save();
       }
     } else {
-      let arrayCoursePush = {
-        course_id: courseId,
-        role: ['viewer'],
-        last_accessed_at: new Date(),
-        last_accessed_item: {
-          EmbeddedDocRef: {
-            embedded_doc_refs: [
-              {
-                level: 'course',
-                doc_id: courseId
-              },
-              {
-                level: 'unit',
-                doc_id: unitId
-              }
-            ]
-          }
-        }
-      };
-      user.course_roles.push(arrayCoursePush);
-      await user.save();
+      // TODO consider what we want to do here, but technically, if you're not yet enrolled, then this likely shouldn't do anything...
+      // let arrayCoursePush = {
+      //   course_id: courseId,
+      //   role: ['viewer'],
+      //   last_accessed_at: new Date(),
+      //   last_accessed_item: {
+      //     EmbeddedDocRef: {
+      //       embedded_doc_refs: [{
+      //           level: 'course',
+      //           doc_id: courseId
+      //         },
+      //         {
+      //           level: 'unit',
+      //           doc_id: unitId
+      //         }
+      //       ]
+      //     }
+      //   }
+      // };
+      // user.course_roles.push(arrayCoursePush);
+      // await user.save();
     }
   } catch (error) {
-    return Promise.reject(Error('Cannot increase course view count'));
+    return Promise.reject(Error('Cannot set unit last accessed'));
   }
 };
 
@@ -187,7 +186,7 @@ export const card_action = async data => {
   );
 
   if (!cardInter) {
-    if (!data.course_id || !data.unit_id /* || !data.section_id */) {
+    if (!data.course_id || !data.unit_id /* || !data.section_id */ ) {
       return Promise.reject(
         Error('course_id, unit_id, section_id is required')
       );
@@ -213,10 +212,18 @@ export const card_action = async data => {
       sectionId = section._id;
     }
 
-    const embedded_doc_refs = [
-      { level: 'course', doc_id: courseId },
-      { level: 'unit', doc_id: unitId },
-      { level: 'section', doc_id: sectionId }
+    const embedded_doc_refs = [{
+        level: 'course',
+        doc_id: courseId
+      },
+      {
+        level: 'unit',
+        doc_id: unitId
+      },
+      {
+        level: 'section',
+        doc_id: sectionId
+      }
     ];
 
     cardInter = await CardInteraction.create({
@@ -226,7 +233,11 @@ export const card_action = async data => {
         action: data.action,
         recorded_at: new Date()
       },
-      card_ref: { EmbeddedDocRef: { embedded_doc_refs } }
+      card_ref: {
+        EmbeddedDocRef: {
+          embedded_doc_refs
+        }
+      }
     });
   } else {
     cardInter.action = {
