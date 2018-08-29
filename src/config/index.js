@@ -21,7 +21,11 @@ const cfg = {
   public_key_b64: process.env.JWT_PUB_KEY_B64,
   card_ema: {
     n: 10
-  }
+  },
+  logging_level:
+    process.env.LOGGING_LEVEL || process.env.NODE_ENV === 'production'
+      ? 'info'
+      : 'debug'
 };
 
 export default cfg;

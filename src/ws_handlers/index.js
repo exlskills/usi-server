@@ -5,6 +5,8 @@ import {
   user_ques,
   card_action
 } from './course-handler';
+import { logger } from '../utils/logger';
+
 export default (ws, req) => {
   // You might use location.query.access_token to authenticate or share sessions
   // or req.headers.cookie (see http://stackoverflow.com/a/16395220/151312)
@@ -26,7 +28,7 @@ const process_message = async message => {
   try {
     msgObj = JSON.parse(message);
   } catch (err) {
-    console.error('error parsing message', err);
+    logger.error('error parsing message', err);
     return;
   }
 
@@ -46,13 +48,13 @@ const process_message = async message => {
           card_action(msgObj.payload.data);
           break;
         default:
-          console.error('Invalid event type:', message.payload.event);
+          logger.error('Invalid event type:', message.payload.event);
           break;
       }
     } catch (err) {
-      console.error('error processing', err);
+      logger.error('error processing', err);
     }
   } else {
-    console.error('payload.event not provided');
+    logger.error('payload.event not provided');
   }
 };

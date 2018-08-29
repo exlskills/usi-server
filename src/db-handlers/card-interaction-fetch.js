@@ -12,7 +12,7 @@ export const findById = async (obj_id, viewer, info) => {
   return record;
 };
 
-export const findByUserIdAndCardId = async (user_id, card_id) => {
+export const fetchByUserIdAndCardId = async (user_id, card_id) => {
   try {
     return await basicFind(
       CardInteraction,

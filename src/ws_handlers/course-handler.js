@@ -1,22 +1,31 @@
 import * as UserFetch from '../db-handlers/user-fetch';
 import * as CourseFetch from '../db-handlers/course-fetch';
-import {
-  fromGlobalId
-} from '../utils/graphql-id-parser';
-import * as CardInteractionFetch from '../db-handlers/card-interaction-fetch';
+import { fromGlobalId } from '../utils/graphql-id-parser';
+import { fetchByUserIdAndCardId } from '../db-handlers/card-interaction-fetch';
 import UserSysInteraction from '../db-models/user-sys-interaction-model';
 import QuestionInteraction from '../db-models/question-interaction-model';
 import CardInteraction from '../db-models/card-interaction-model';
+import { logger } from '../utils/logger';
+import { fetchByUserQuestExamAttempt } from '../db-handlers/question-interaction-fetch';
 
 export const user_ques = async data => {
+  logger.debug(`in user_ques`);
   data.ques_id = fromGlobalId(data.ques_id).id;
   data.quiz_id = fromGlobalId(data.quiz_id).id;
 
+  /*
   let questInte = await QuestionInteraction.findOne({
     user_id: data.user_id,
     question_id: data.ques_id,
     exam_attempt_id: data.quiz_id
   });
+  */
+
+  let questInte = await fetchByUserQuestExamAttempt(
+    data.user_id,
+    data.ques_id,
+    data.quiz_id
+  );
 
   if (!questInte) {
     questInte = await QuestionInteraction.create({
@@ -42,7 +51,9 @@ export const user_ques = async data => {
   }
   await questInte.save();
 };
+
 export const user_locale = async data => {
+  logger.debug(`in user_locale`);
   let locale_from = data.locale_from;
   let locale_to = data.locale_to;
   let action = 'chloc';
@@ -60,7 +71,7 @@ export const user_locale = async data => {
   }
   let full_name = user.username;
   let primary_email = user.primary_email;
-  if (full_name == '' && primary_email == '') {
+  if (full_name === '' && primary_email === '') {
     user.primary_locale = locale_to;
     await user.save();
   } else {
@@ -69,13 +80,16 @@ export const user_locale = async data => {
 };
 
 export const course_unit_last_access = async data => {
+  logger.debug(`in course_unit_last_access`);
   const user = await UserFetch.findById(data.user_id);
   if (!user) {
     return Promise.reject(Error('User does not exist'));
   }
   const courseId = fromGlobalId(data.cour_id).id;
   const unitId = fromGlobalId(data.unit_id).id;
-  const courseRole = user.course_roles.find(item => item.course_id == courseId);
+  const courseRole = user.course_roles.find(
+    item => item.course_id === courseId
+  );
   try {
     if (courseRole) {
       //Check exist last_accessed_item
@@ -85,13 +99,14 @@ export const course_unit_last_access = async data => {
             courseRole.last_accessed_item.EmbeddedDocRef.embedded_doc_refs;
           if (arrayDocRef.length > 0) {
             //Update
-            let FindCourse = arrayDocRef.find(item => item.level == 'course');
+            let FindCourse = arrayDocRef.find(item => item.level === 'course');
             FindCourse.doc_id = courseId;
-            let FindUnit = arrayDocRef.find(item => item.level == 'unit');
+            let FindUnit = arrayDocRef.find(item => item.level === 'unit');
             FindUnit.doc_id = unitId;
             await user.save();
           } else {
-            let araryDocRefPush = [{
+            let araryDocRefPush = [
+              {
                 level: 'course',
                 doc_id: courseId
               },
@@ -104,7 +119,8 @@ export const course_unit_last_access = async data => {
           }
         } else {
           let array_last_accessed_item = {
-            embedded_doc_refs: [{
+            embedded_doc_refs: [
+              {
                 level: 'course',
                 doc_id: courseId
               },
@@ -120,7 +136,8 @@ export const course_unit_last_access = async data => {
       } else {
         let array_last_accessed_item = {
           EmbeddedDocRef: {
-            embedded_doc_refs: [{
+            embedded_doc_refs: [
+              {
                 level: 'course',
                 doc_id: courseId
               },
@@ -163,6 +180,7 @@ export const course_unit_last_access = async data => {
 };
 
 export const card_action = async data => {
+  logger.debug(`in card_action`);
   const user = await UserFetch.findById(data.user_id);
   if (!user) {
     return Promise.reject(Error('User does not exist'));
@@ -180,13 +198,10 @@ export const card_action = async data => {
     sectionId = fromGlobalId(data.section_id).id;
   }
 
-  let cardInter = await CardInteractionFetch.findByUserIdAndCardId(
-    data.user_id,
-    cardId
-  );
+  let cardInter = await fetchByUserIdAndCardId(data.user_id, cardId);
 
   if (!cardInter) {
-    if (!data.course_id || !data.unit_id /* || !data.section_id */ ) {
+    if (!data.course_id || !data.unit_id /* || !data.section_id */) {
       return Promise.reject(
         Error('course_id, unit_id, section_id is required')
       );
@@ -197,12 +212,12 @@ export const card_action = async data => {
       if (!course) {
         return Promise.reject(Error(`Course not found: ${courseId}`));
       }
-      const unit = course.units.Units.find(item => item._id == unitId);
+      const unit = course.units.Units.find(item => item._id === unitId);
       if (!unit) {
         return Promise.reject(Error(`CourseUnit not found: ${unitId}`));
       }
       const section = unit.sections.Sections.find(
-        item => !!item.cards.Cards.find(item2 => item2._id == cardId)
+        item => !!item.cards.Cards.find(item2 => item2._id === cardId)
       );
       if (!section) {
         return Promise.reject(
@@ -212,7 +227,8 @@ export const card_action = async data => {
       sectionId = section._id;
     }
 
-    const embedded_doc_refs = [{
+    const embedded_doc_refs = [
+      {
         level: 'course',
         doc_id: courseId
       },
@@ -247,7 +263,9 @@ export const card_action = async data => {
     await cardInter.save();
   }
 
-  if (data.action == 'answ_c') {
+  if (data.action === 'answ_c') {
+    // TODO: UserCourseRole functionality has been removed. Need a better place for this event to register
+    /*
     const userCourse = user.course_roles.find(
       item => (item.course_id = courseId)
     );
@@ -259,7 +277,7 @@ export const card_action = async data => {
       userCourse.course_unit_status = [];
     }
     const unitStatus = userCourse.course_unit_status.find(
-      item => item.unit_id == unitId
+      item => item.unit_id === unitId
     );
 
     if (!unitStatus) {
@@ -268,12 +286,13 @@ export const card_action = async data => {
         quiz_lvl: 1,
         quiz_lvl_updated_at: new Date()
       });
-    } else if (unitStatus.quiz_lvl == 0) {
+    } else if (unitStatus.quiz_lvl === 0) {
       unitStatus.quiz_lvl = 1;
       unitStatus.quiz_lvl_updated_at = new Date();
     }
 
     await user.save();
+    */
   }
 
   return Promise.resolve({});

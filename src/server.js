@@ -5,6 +5,7 @@ import http from 'http';
 import WebSocket from 'ws';
 import config from './config';
 import handlers from './ws_handlers';
+import { logger } from './utils/logger';
 
 let wsServer;
 
@@ -20,10 +21,10 @@ function startWSServer(callback) {
 
   promiseDb
     .then(db => {
-      console.log('Mongoose connected ok ');
+      logger.info('Mongoose connected ok ');
     })
     .catch(err => {
-      console.error('Mongoose connection error:', err.stack);
+      logger.error('Mongoose connection error:', err.stack);
       process.exit(1);
     });
 
@@ -39,7 +40,7 @@ function startWSServer(callback) {
   wss.on('connection', handlers);
 
   wsServer.listen(WS_PORT, () => {
-    console.log(`WS Server is now running on http://localhost:${WS_PORT}`);
+    logger.info(`WS Server is now running on http://localhost:${WS_PORT}`);
     if (callback) {
       callback();
     }

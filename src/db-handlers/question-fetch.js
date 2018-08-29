@@ -6,9 +6,13 @@ export const findById = async (obj_id, viewer, info) => {
   let record;
   try {
     //model, runParams, queryVal, sortVal, selectVal
-    record = await basicFind(Question, {
-      isById: true
-    }, obj_id);
+    record = await basicFind(
+      Question,
+      {
+        isById: true
+      },
+      obj_id
+    );
   } catch (errInternalAllreadyReported) {
     return null;
   }
@@ -44,14 +48,16 @@ export const findQuestion = async (user_id, question_id, quiz_id, act) => {
     let duration = new Date() - new Date(start_date);
     const result = await upsertQuestionInteraction(updateObject);
     try {
-      await QuestionInteraction.update({
+      await QuestionInteraction.update(
+        {
           user_id: user_id,
           question_id: question_id,
           exam_attempt_id: exam_attempt_id,
           trace: ['havent_learned'],
           duration_sec: duration
         },
-        object, {
+        object,
+        {
           upsert: true
         }
       ).exec();
