@@ -4,10 +4,7 @@ import UserCourseRoleSchema from './user-course-role-model';
 import UserSubscriptionSchema from './user-subscription-model';
 import AuthStrategySchema from './auth-strategy-model';
 import UserOrganizationRoleSchema from './user-organization-role-model';
-import UserClassRoleSchema from './user-class-role-model';
 import IntlStringSchema from './intl-string-model';
-import UserMetricSchema from './user-metric-model';
-import LikeSchema from './like-model';
 
 /**
  * User Schema
@@ -19,20 +16,19 @@ const UserSchema = new mongoose.Schema(
       default: id_gen
     },
     full_name: {
-      type: IntlStringSchema
+      type: IntlStringSchema,
+      index: true
     },
     headline: {
       type: IntlStringSchema
     },
     username: {
-      type: String
+      type: String,
+      index: true
     },
     primary_email: {
-      type: String
-    },
-    pwd: {
       type: String,
-      required: true
+      index: true
     },
     secondary_emails: {
       type: [String]
@@ -52,6 +48,7 @@ const UserSchema = new mongoose.Schema(
     },
     primary_locale: {
       type: String,
+      default: 'en',
       required: true
     },
     locales: {
@@ -71,25 +68,23 @@ const UserSchema = new mongoose.Schema(
       default: false
     },
     auth_strategies: {
-      type: [AuthStrategySchema]
+      type: [AuthStrategySchema],
+      default: []
     },
     organization_roles: {
-      type: [UserOrganizationRoleSchema]
-    },
-    class_roles: {
-      type: [UserClassRoleSchema]
+      type: [UserOrganizationRoleSchema],
+      default: []
     },
     course_roles: {
-      type: [UserCourseRoleSchema]
+      type: [UserCourseRoleSchema],
+      default: []
     },
-    workspace_likes: {
-      type: [LikeSchema]
+    zoho_customer_id: {
+      type: String,
+      index: true
     },
-    discussion_likes: {
-      type: [LikeSchema]
-    },
-    user_metrics: {
-      type: [UserMetricSchema]
+    zoho_ccy_code: {
+      type: String
     }
   },
   {
@@ -97,8 +92,8 @@ const UserSchema = new mongoose.Schema(
   }
 );
 
-UserSchema.index({ full_name: 1 });
-UserSchema.index({ username: 1 });
-UserSchema.index({ primary_email: 1 });
+UserSchema.index({
+  'auth_strategies.auth_id': 1
+});
 
 export default mongoose.model('User', UserSchema, 'user');

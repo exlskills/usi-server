@@ -7,6 +7,7 @@ import QuestionInteraction from '../db-models/question-interaction-model';
 import CardInteraction from '../db-models/card-interaction-model';
 import { logger } from '../utils/logger';
 import { fetchByUserQuestExamAttempt } from '../db-handlers/question-interaction-fetch';
+import { fetchCardRefByCourseUnitCardId } from '../db-handlers/section-card-fetch';
 
 export const user_ques = async data => {
   logger.debug(`in user_ques`);
@@ -152,27 +153,27 @@ export const course_unit_last_access = async data => {
         user.save();
       }
     } else {
-      // TODO consider what we want to do here, but technically, if you're not yet enrolled, then this likely shouldn't do anything...
-      // let arrayCoursePush = {
-      //   course_id: courseId,
-      //   role: ['viewer'],
-      //   last_accessed_at: new Date(),
-      //   last_accessed_item: {
-      //     EmbeddedDocRef: {
-      //       embedded_doc_refs: [{
-      //           level: 'course',
-      //           doc_id: courseId
-      //         },
-      //         {
-      //           level: 'unit',
-      //           doc_id: unitId
-      //         }
-      //       ]
-      //     }
-      //   }
-      // };
-      // user.course_roles.push(arrayCoursePush);
-      // await user.save();
+      let arrayCoursePush = {
+        course_id: courseId,
+        role: ['viewer'],
+        last_accessed_at: new Date(),
+        last_accessed_item: {
+          EmbeddedDocRef: {
+            embedded_doc_refs: [
+              {
+                level: 'course',
+                doc_id: courseId
+              },
+              {
+                level: 'unit',
+                doc_id: unitId
+              }
+            ]
+          }
+        }
+      };
+      user.course_roles.push(arrayCoursePush);
+      await user.save();
     }
   } catch (error) {
     return Promise.reject(Error('Cannot set unit last accessed'));
@@ -181,7 +182,11 @@ export const course_unit_last_access = async data => {
 
 export const card_action = async data => {
   logger.debug(`in card_action`);
-  const user = await UserFetch.findById(data.user_id);
+  logger.debug(`   data ` + JSON.stringify(data));
+  const user = await UserFetch.findById(data.user_id, {
+    _id: 1,
+    course_roles: 1
+  });
   if (!user) {
     return Promise.reject(Error('User does not exist'));
   }
@@ -201,30 +206,25 @@ export const card_action = async data => {
   let cardInter = await fetchByUserIdAndCardId(data.user_id, cardId);
 
   if (!cardInter) {
-    if (!data.course_id || !data.unit_id /* || !data.section_id */) {
-      return Promise.reject(
-        Error('course_id, unit_id, section_id is required')
-      );
+    if (!data.course_id || !data.unit_id || !data.card_id) {
+      return Promise.reject(Error('course_id, unit_id, card_id are required'));
     }
 
     if (!sectionId) {
-      const course = await CourseFetch.findById(courseId);
-      if (!course) {
-        return Promise.reject(Error(`Course not found: ${courseId}`));
-      }
-      const unit = course.units.Units.find(item => item._id === unitId);
-      if (!unit) {
-        return Promise.reject(Error(`CourseUnit not found: ${unitId}`));
-      }
-      const section = unit.sections.Sections.find(
-        item => !!item.cards.Cards.find(item2 => item2._id === cardId)
+      const cardRef = await fetchCardRefByCourseUnitCardId(
+        courseId,
+        unitId,
+        cardId
       );
-      if (!section) {
+
+      if (!cardRef || cardRef.length < 1) {
         return Promise.reject(
           Error(`UnitSection not found for card: ${cardId}`)
         );
       }
-      sectionId = section._id;
+      sectionId = cardRef[0].card_ref.EmbeddedDocRef.embedded_doc_refs.find(
+        item => item.level === 'section'
+      );
     }
 
     const embedded_doc_refs = [
@@ -264,31 +264,14 @@ export const card_action = async data => {
   }
 
   if (data.action === 'answ_c') {
-    // TODO: UserCourseRole functionality has been removed. Need a better place for this event to register
+    // TODO: what would we need here? Before this went into quiz_lvl
+    // This is called on Haven't Studied Yet
     /*
-    const userCourse = user.course_roles.find(
+    let userCourse = user.course_roles.find(
       item => (item.course_id = courseId)
     );
     if (!userCourse) {
-      return Promise.reject(Error('UserCourseRole does not exist'));
-    }
-
-    if (!userCourse.course_unit_status) {
-      userCourse.course_unit_status = [];
-    }
-    const unitStatus = userCourse.course_unit_status.find(
-      item => item.unit_id === unitId
-    );
-
-    if (!unitStatus) {
-      userCourse.course_unit_status.push({
-        unit_id: unitId,
-        quiz_lvl: 1,
-        quiz_lvl_updated_at: new Date()
-      });
-    } else if (unitStatus.quiz_lvl === 0) {
-      unitStatus.quiz_lvl = 1;
-      unitStatus.quiz_lvl_updated_at = new Date();
+      // This would never happen (?)
     }
 
     await user.save();
