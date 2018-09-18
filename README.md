@@ -1,3 +1,5 @@
+[![Docker Automated build](https://img.shields.io/docker/automated/jrottenberg/ffmpeg.svg)](https://hub.docker.com/r/exlskills/usi-server/)
+
 # EXLskills User-system Interaction Tracking Server
 
 ## Requirements
