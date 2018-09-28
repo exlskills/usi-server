@@ -219,12 +219,15 @@ export const card_action = async data => {
 
       if (!cardRef || cardRef.length < 1) {
         return Promise.reject(
-          Error(`UnitSection not found for card: ${cardId}`)
+          Error(`Card not found by Unit and Card ID: ${cardId}`)
         );
       }
-      sectionId = cardRef[0].card_ref.EmbeddedDocRef.embedded_doc_refs.find(
+
+      const cardRefSection = cardRef.card_ref.EmbeddedDocRef.embedded_doc_refs.find(
         item => item.level === 'section'
       );
+      sectionId =
+        cardRefSection && cardRefSection.doc_id ? cardRefSection.doc_id : '';
     }
 
     const embedded_doc_refs = [

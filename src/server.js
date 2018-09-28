@@ -6,6 +6,7 @@ import WebSocket from 'ws';
 import config from './config';
 import handlers from './ws_handlers';
 import { logger } from './utils/logger';
+import User from './db-models/user-model';
 
 let wsServer;
 
@@ -28,6 +29,9 @@ function startWSServer(callback) {
   promiseDb
     .then(db => {
       logger.info('Mongoose connected ok ');
+      logger.debug(
+        'Mongo DB ' + User.db.host + ':' + User.db.port + '/' + User.db.name
+      );
     })
     .catch(err => {
       logger.error('Mongoose connection error:', err.stack);
