@@ -15,12 +15,11 @@ const WS_PORT = parseInt(config.http_port);
 mongoose.Promise = global.Promise;
 
 function startWSServer(callback) {
+  mongoose.set('useCreateIndex', true);
   let promiseDb = mongoose.connect(config.mongo.uri + '/' + config.mongo.db, {
     autoReconnect: true,
     useNewUrlParser: true
   });
-
-  // mongoose.set('useCreateIndex', true);
 
   if (config.db_debug_log) {
     mongoose.set('debug', true);
