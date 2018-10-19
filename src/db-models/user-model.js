@@ -92,8 +92,9 @@ const UserSchema = new mongoose.Schema(
   }
 );
 
+// NOTE: this adds index required in GQL
 UserSchema.index({
-  'auth_strategies.auth_id': 1
+  'full_name.intlString.content': 1
 });
 
 export default mongoose.model('User', UserSchema, 'user');

@@ -33,10 +33,4 @@ const ListDefSchema = new mongoose.Schema(
   }
 );
 
-ListDefSchema.index(
-  { 'contents.content.intlString.content': 'text' },
-  { language_override: 'locale' },
-  { default_language: 'none' }
-);
-
 export default mongoose.model('ListDef', ListDefSchema, 'list_def');

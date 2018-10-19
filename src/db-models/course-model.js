@@ -71,10 +71,4 @@ const CourseSchema = new mongoose.Schema(
   }
 );
 
-CourseSchema.index(
-  { 'title.intlString.content': 'text' },
-  { language_override: 'locale' }
-);
-CourseSchema.index({ topics: 1 });
-
 export default mongoose.model('Course', CourseSchema, 'course');
