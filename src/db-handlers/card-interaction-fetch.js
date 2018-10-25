@@ -12,12 +12,14 @@ export const findById = async (obj_id, viewer, info) => {
   return record;
 };
 
-export const fetchByUserIdAndCardId = async (user_id, card_id) => {
+export const fetchByUserIdAndCardId = async (user_id, card_id, selectVal) => {
   try {
     return await basicFind(
       CardInteraction,
       { isOne: true },
-      { user_id, card_id }
+      { user_id, card_id },
+      null,
+      selectVal
     );
   } catch (err) {
     return null;

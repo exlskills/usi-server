@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import { logger } from '../utils/logger';
 
 export async function basicFind(
   model,
@@ -22,6 +22,7 @@ export async function basicFind(
   } else if (queryVal) {
     queryFunc = model.find(queryVal);
   } else {
+    logger.error('Invalid call parameters provided');
     return Promise.reject('Invalid call parameters provided');
   }
 
@@ -33,9 +34,9 @@ export async function basicFind(
   }
 
   try {
-    result = await queryFunc.exec();
-    return result;
+    return await queryFunc.exec();
   } catch (err) {
+    logger.error(`Find failed ` + err + `; model ` + model);
     return Promise.reject('Find failed', err);
   }
 }

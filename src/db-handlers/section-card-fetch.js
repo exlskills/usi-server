@@ -55,10 +55,10 @@ export const fetchCardRefByCourseUnitCardId = async (
   array.push({
     $project: {
       ...selectFields,
-      card_ref: '$cards.card_ref'
+      card_ref: '$cards.card_ref',
+      course_item_ref: '$cards.course_item_ref'
     }
   });
-  selectFields.card_ref = 1;
 
   const result = await Course.aggregate(array).exec();
   return result.length > 0 ? result[0] : {};

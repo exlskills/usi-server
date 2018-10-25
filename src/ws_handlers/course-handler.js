@@ -1,13 +1,14 @@
-import * as UserFetch from '../db-handlers/user-fetch';
-import * as CourseFetch from '../db-handlers/course-fetch';
 import { fromGlobalId } from '../utils/graphql-id-parser';
-import { fetchByUserIdAndCardId } from '../db-handlers/card-interaction-fetch';
+import { logger } from '../utils/logger';
+
 import UserSysInteraction from '../db-models/user-sys-interaction-model';
 import QuestionInteraction from '../db-models/question-interaction-model';
 import CardInteraction from '../db-models/card-interaction-model';
-import { logger } from '../utils/logger';
+
+import { fetchByUserIdAndCardId } from '../db-handlers/card-interaction-fetch';
 import { fetchByUserQuestExamAttempt } from '../db-handlers/question-interaction-fetch';
 import { fetchCardRefByCourseUnitCardId } from '../db-handlers/section-card-fetch';
+import * as UserFetch from '../db-handlers/user-fetch';
 
 export const user_ques = async data => {
   logger.debug(`in user_ques`);
@@ -183,9 +184,11 @@ export const course_unit_last_access = async data => {
 export const card_action = async data => {
   logger.debug(`in card_action`);
   logger.debug(`   data ` + JSON.stringify(data));
+
+  const received_at = new Date();
+
   const user = await UserFetch.findById(data.user_id, {
-    _id: 1,
-    course_roles: 1
+    _id: 1
   });
   if (!user) {
     return Promise.reject(Error('User does not exist'));
@@ -196,16 +199,16 @@ export const card_action = async data => {
   }
 
   const cardId = fromGlobalId(data.card_id).id;
-  const courseId = fromGlobalId(data.course_id).id;
-  const unitId = fromGlobalId(data.unit_id).id;
-  let sectionId = '';
-  if (data.section_id) {
-    sectionId = fromGlobalId(data.section_id).id;
-  }
-
   let cardInter = await fetchByUserIdAndCardId(data.user_id, cardId);
 
   if (!cardInter) {
+    const courseId = fromGlobalId(data.course_id).id;
+    const unitId = fromGlobalId(data.unit_id).id;
+    let sectionId = '';
+    if (data.section_id) {
+      sectionId = fromGlobalId(data.section_id).id;
+    }
+
     if (!data.course_id || !data.unit_id || !data.card_id) {
       return Promise.reject(Error('course_id, unit_id, card_id are required'));
     }
@@ -223,11 +226,17 @@ export const card_action = async data => {
         );
       }
 
-      const cardRefSection = cardRef.card_ref.EmbeddedDocRef.embedded_doc_refs.find(
-        item => item.level === 'section'
-      );
-      sectionId =
-        cardRefSection && cardRefSection.doc_id ? cardRefSection.doc_id : '';
+      if (cardRef.course_item_ref && cardRef.course_item_ref.section_id) {
+        sectionId = cardRef.course_item_ref.section_id;
+        logger(` section_id ` + sectionId);
+      } else {
+        // TODO deprecate
+        const cardRefSection = cardRef.card_ref.EmbeddedDocRef.embedded_doc_refs.find(
+          item => item.level === 'section'
+        );
+        sectionId =
+          cardRefSection && cardRefSection.doc_id ? cardRefSection.doc_id : '';
+      }
     }
 
     const embedded_doc_refs = [
@@ -250,18 +259,24 @@ export const card_action = async data => {
       card_id: cardId,
       action: {
         action: data.action,
-        recorded_at: new Date()
+        recorded_at: received_at
       },
       card_ref: {
         EmbeddedDocRef: {
           embedded_doc_refs
         }
+      },
+      course_item_ref: {
+        course_id: courseId,
+        unit_id: unitId,
+        section_id: sectionId
       }
     });
   } else {
+    // Override latest action
     cardInter.action = {
       action: data.action,
-      recorded_at: new Date()
+      recorded_at: received_at
     };
     await cardInter.save();
   }
