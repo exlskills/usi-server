@@ -1,10 +1,5 @@
 import { WS_EVENTS } from './constants';
-import {
-  course_unit_last_access,
-  user_locale,
-  user_ques,
-  card_action
-} from './course-handler';
+import { user_locale, user_ques, card_action } from './course-handler';
 import { logger } from '../utils/logger';
 
 export default (ws, req) => {
@@ -35,9 +30,6 @@ const process_message = async message => {
   if (msgObj.payload && msgObj.payload.event && msgObj.payload.data) {
     try {
       switch (msgObj.payload.event) {
-        case WS_EVENTS.courseUserItem:
-          course_unit_last_access(msgObj.payload.data);
-          break;
         case WS_EVENTS.userLocale:
           user_locale(msgObj.payload.data);
           break;

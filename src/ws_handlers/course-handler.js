@@ -9,6 +9,7 @@ import { fetchByUserIdAndCardId } from '../db-handlers/card-interaction-fetch';
 import { fetchByUserQuestExamAttempt } from '../db-handlers/question-interaction-fetch';
 import { fetchCardRefByCourseUnitCardId } from '../db-handlers/section-card-fetch';
 import * as UserFetch from '../db-handlers/user-fetch';
+import { updateLastAccessedAt } from '../db-handlers/user-course-role-cud';
 
 export const user_ques = async data => {
   logger.debug(`in user_ques`);
@@ -81,106 +82,6 @@ export const user_locale = async data => {
   }
 };
 
-export const course_unit_last_access = async data => {
-  logger.debug(`in course_unit_last_access`);
-  const user = await UserFetch.findById(data.user_id);
-  if (!user) {
-    return Promise.reject(Error('User does not exist'));
-  }
-  const courseId = fromGlobalId(data.cour_id).id;
-  const unitId = fromGlobalId(data.unit_id).id;
-  const courseRole = user.course_roles.find(
-    item => item.course_id === courseId
-  );
-  try {
-    if (courseRole) {
-      //Check exist last_accessed_item
-      if (courseRole.last_accessed_item) {
-        if (courseRole.last_accessed_item.EmbeddedDocRef) {
-          let arrayDocRef =
-            courseRole.last_accessed_item.EmbeddedDocRef.embedded_doc_refs;
-          if (arrayDocRef.length > 0) {
-            //Update
-            let FindCourse = arrayDocRef.find(item => item.level === 'course');
-            FindCourse.doc_id = courseId;
-            let FindUnit = arrayDocRef.find(item => item.level === 'unit');
-            FindUnit.doc_id = unitId;
-            await user.save();
-          } else {
-            let araryDocRefPush = [
-              {
-                level: 'course',
-                doc_id: courseId
-              },
-              {
-                level: 'unit',
-                doc_id: unitId
-              }
-            ];
-            courseRole.last_accessed_item.EmbeddedDocRef.embedded_doc_refs = araryDocRefPush;
-          }
-        } else {
-          let array_last_accessed_item = {
-            embedded_doc_refs: [
-              {
-                level: 'course',
-                doc_id: courseId
-              },
-              {
-                level: 'unit',
-                doc_id: unitId
-              }
-            ]
-          };
-          courseRole.last_accessed_item.EmbeddedDocRef = array_last_accessed_item;
-          user.save();
-        }
-      } else {
-        let array_last_accessed_item = {
-          EmbeddedDocRef: {
-            embedded_doc_refs: [
-              {
-                level: 'course',
-                doc_id: courseId
-              },
-              {
-                level: 'unit',
-                doc_id: unitId
-              }
-            ]
-          }
-        };
-        courseRole.last_accessed_item = array_last_accessed_item;
-        user.save();
-      }
-    } else {
-      let arrayCoursePush = {
-        course_id: courseId,
-        role: ['viewer'],
-        last_accessed_at: new Date(),
-        last_accessed_item: {
-          EmbeddedDocRef: {
-            embedded_doc_refs: [
-              {
-                level: 'course',
-                doc_id: courseId
-              },
-              {
-                level: 'unit',
-                doc_id: unitId
-              }
-            ]
-          }
-        }
-      };
-      user.course_roles.push(arrayCoursePush);
-      await user.save();
-    }
-  } catch (error) {
-    return Promise.reject(Error('Cannot set unit last accessed'));
-  }
-};
-
 export const card_action = async data => {
   logger.debug(`in card_action`);
   logger.debug(`   data ` + JSON.stringify(data));
@@ -201,6 +102,21 @@ export const card_action = async data => {
   const cardId = fromGlobalId(data.card_id).id;
   let cardInter = await fetchByUserIdAndCardId(data.user_id, cardId);
 
+  // TODO - remove this when card_ref.EmbeddedDocRef is deprecated as we'll
+  // always have cardInter.course_item_ref.course_id populated
+  if (cardInter && !cardInter.course_item_ref) {
+    if (data.course_id) {
+      cardInter.course_item_ref.course_id = fromGlobalId(data.course_id).id;
+    } else {
+      const courseId = cardInter.card_ref.EmbeddedDocRef.embedded_doc_refs.find(
+        item => item.level === 'section'
+      );
+      if (courseId) {
+        cardInter.course_item_ref.course_id = courseId;
+      }
+    }
+  }
+
   if (!cardInter) {
     const courseId = fromGlobalId(data.course_id).id;
     const unitId = fromGlobalId(data.unit_id).id;
@@ -219,6 +135,7 @@ export const card_action = async data => {
         unitId,
         cardId
       );
+      logger(`  cardRef for section_id ` + JSON.stringify(cardRef));
 
       if (!cardRef || cardRef.length < 1) {
         return Promise.reject(
@@ -278,22 +195,22 @@ export const card_action = async data => {
       action: data.action,
       recorded_at: received_at
     };
-    await cardInter.save();
+    try {
+      await cardInter.save();
+    } catch (err) {
+      logger.error(`in card_action cardInter.save ` + err);
+      return Promise.reject(`Error saving card_interaction document`);
+    }
   }
 
-  if (data.action === 'answ_c') {
-    // TODO: what would we need here? Before this went into quiz_lvl
-    // This is called on Haven't Studied Yet
-    /*
-    let userCourse = user.course_roles.find(
-      item => (item.course_id = courseId)
+  try {
+    await updateLastAccessedAt(
+      data.user_id,
+      cardInter.course_item_ref.course_id,
+      received_at
     );
-    if (!userCourse) {
-      // This would never happen (?)
-    }
-
-    await user.save();
-    */
+  } catch (alreadyReported) {
+    return Promise.reject(`Error updating user_course_role`);
   }
 
   return Promise.resolve({});

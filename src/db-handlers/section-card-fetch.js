@@ -28,7 +28,7 @@ export const fetchCardRefByCourseUnitCardId = async (
   });
   array.push({ $unwind: '$unit' });
 
-  // Find the section
+  // Unwind Unit Sections
   array.push({
     $project: {
       ...selectFields,
@@ -60,6 +60,11 @@ export const fetchCardRefByCourseUnitCardId = async (
     }
   });
 
-  const result = await Course.aggregate(array).exec();
+  try {
+    const result = await Course.aggregate(array).exec();
+  } catch (err) {
+    logger.error(`in fetchCardRefByCourseUnitCardId ` + err);
+    return null;
+  }
   return result.length > 0 ? result[0] : {};
 };
