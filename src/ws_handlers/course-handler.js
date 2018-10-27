@@ -102,31 +102,18 @@ export const card_action = async data => {
   const cardId = fromGlobalId(data.card_id).id;
   let cardInter = await fetchByUserIdAndCardId(data.user_id, cardId);
 
-  // TODO - remove this when card_ref.EmbeddedDocRef is deprecated as we'll
-  // always have cardInter.course_item_ref.course_id populated
-  if (cardInter && !cardInter.course_item_ref) {
-    if (data.course_id) {
-      cardInter.course_item_ref.course_id = fromGlobalId(data.course_id).id;
-    } else {
-      const courseId = cardInter.card_ref.EmbeddedDocRef.embedded_doc_refs.find(
-        item => item.level === 'section'
-      );
-      if (courseId) {
-        cardInter.course_item_ref.course_id = courseId;
-      }
-    }
-  }
+  let courseId;
 
   if (!cardInter) {
-    const courseId = fromGlobalId(data.course_id).id;
+    if (!data.course_id || !data.unit_id || !data.card_id) {
+      return Promise.reject(Error('course_id, unit_id, card_id are required'));
+    }
+
+    courseId = fromGlobalId(data.course_id).id;
     const unitId = fromGlobalId(data.unit_id).id;
     let sectionId = '';
     if (data.section_id) {
       sectionId = fromGlobalId(data.section_id).id;
-    }
-
-    if (!data.course_id || !data.unit_id || !data.card_id) {
-      return Promise.reject(Error('course_id, unit_id, card_id are required'));
     }
 
     if (!sectionId) {
@@ -156,6 +143,7 @@ export const card_action = async data => {
       }
     }
 
+    // TODO deprecate
     const embedded_doc_refs = [
       {
         level: 'course',
@@ -190,6 +178,21 @@ export const card_action = async data => {
       }
     });
   } else {
+    // TODO - remove extra logic when card_ref.EmbeddedDocRef is deprecated as we'll
+    // always have cardInter.course_item_ref.course_id populated
+    if (!cardInter.course_item_ref) {
+      if (data.course_id) {
+        courseId = fromGlobalId(data.course_id).id;
+      } else {
+        // Note - this stored ID maybe incorrect
+        courseId = cardInter.card_ref.EmbeddedDocRef.embedded_doc_refs.find(
+          item => item.level === 'course'
+        ).doc_id;
+      }
+    } else {
+      courseId = cardInter.course_item_ref.course_id;
+    }
+
     // Override latest action
     cardInter.action = {
       action: data.action,
@@ -204,11 +207,7 @@ export const card_action = async data => {
   }
 
   try {
-    await updateLastAccessedAt(
-      data.user_id,
-      cardInter.course_item_ref.course_id,
-      received_at
-    );
+    await updateLastAccessedAt(data.user_id, courseId, received_at);
   } catch (alreadyReported) {
     return Promise.reject(`Error updating user_course_role`);
   }
