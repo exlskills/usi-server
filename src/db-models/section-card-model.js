@@ -33,10 +33,6 @@ export default new mongoose.Schema(
     question_ids: {
       type: [String]
     },
-    // TODO deprecate and remove
-    card_ref: {
-      type: EmbeddedDocRef
-    },
     course_item_ref: {
       type: CourseItemRefSchema
     }

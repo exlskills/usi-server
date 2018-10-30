@@ -7,7 +7,7 @@ import CardInteraction from '../db-models/card-interaction-model';
 
 import { fetchByUserIdAndCardId } from '../db-handlers/card-interaction-fetch';
 import { fetchByUserQuestExamAttempt } from '../db-handlers/question-interaction-fetch';
-import { fetchCardRefByCourseUnitCardId } from '../db-handlers/section-card-fetch';
+import { fetchCourseItemRefByCourseUnitCardId } from '../db-handlers/section-card-fetch';
 import * as UserFetch from '../db-handlers/user-fetch';
 import { updateLastAccessedAt } from '../db-handlers/user-course-role-cud';
 
@@ -82,9 +82,20 @@ export const user_locale = async data => {
   }
 };
 
-export const card_action = async data => {
+export const card_action = async (data, viewer) => {
   logger.debug(`in card_action`);
   logger.debug(`   data ` + JSON.stringify(data));
+
+  if (!(data.card_id && data.user_id)) {
+    return Promise.reject(Error('card_id and user_id are required'));
+  }
+
+  if (viewer.user_id !== data.user_id) {
+    logger.error(`user IDs don't match ` + viewer.user_id + ` ` + data.user_id);
+    // TODO - exit
+  } else {
+    logger.debug(`user IDs match`);
+  }
 
   const received_at = new Date();
 
@@ -99,99 +110,62 @@ export const card_action = async data => {
     return Promise.reject(Error('card_id is required'));
   }
 
+  let courseId;
   const cardId = fromGlobalId(data.card_id).id;
   let cardInter = await fetchByUserIdAndCardId(data.user_id, cardId);
 
-  let courseId;
-
   if (!cardInter) {
-    if (!data.course_id || !data.unit_id || !data.card_id) {
-      return Promise.reject(Error('course_id, unit_id, card_id are required'));
+    if (!data.course_id || !data.unit_id) {
+      return Promise.reject(Error('course_id and unit_id are required'));
     }
 
     courseId = fromGlobalId(data.course_id).id;
     const unitId = fromGlobalId(data.unit_id).id;
-    let sectionId = '';
+    let sectionId = null;
     if (data.section_id) {
       sectionId = fromGlobalId(data.section_id).id;
-    }
-
-    if (!sectionId) {
-      const cardRef = await fetchCardRefByCourseUnitCardId(
+    } else {
+      const cardRec = await fetchCourseItemRefByCourseUnitCardId(
         courseId,
         unitId,
         cardId
       );
-      logger(`  cardRef for section_id ` + JSON.stringify(cardRef));
+      logger(`  cardRec for section_id ` + JSON.stringify(cardRec));
 
-      if (!cardRef || cardRef.length < 1) {
+      if (!cardRec) {
         return Promise.reject(
           Error(`Card not found by Unit and Card ID: ${cardId}`)
         );
       }
 
-      if (cardRef.course_item_ref && cardRef.course_item_ref.section_id) {
-        sectionId = cardRef.course_item_ref.section_id;
-        logger(` section_id ` + sectionId);
-      } else {
-        // TODO deprecate
-        const cardRefSection = cardRef.card_ref.EmbeddedDocRef.embedded_doc_refs.find(
-          item => item.level === 'section'
-        );
-        sectionId =
-          cardRefSection && cardRefSection.doc_id ? cardRefSection.doc_id : '';
-      }
+      sectionId =
+        cardRec.course_item_ref && cardRec.course_item_ref.section_id
+          ? cardRec.course_item_ref.section_id
+          : '';
+      logger(` section_id ` + sectionId);
     }
 
-    // TODO deprecate
-    const embedded_doc_refs = [
-      {
-        level: 'course',
-        doc_id: courseId
-      },
-      {
-        level: 'unit',
-        doc_id: unitId
-      },
-      {
-        level: 'section',
-        doc_id: sectionId
-      }
-    ];
-
-    cardInter = await CardInteraction.create({
-      user_id: data.user_id,
-      card_id: cardId,
-      action: {
-        action: data.action,
-        recorded_at: received_at
-      },
-      card_ref: {
-        EmbeddedDocRef: {
-          embedded_doc_refs
+    try {
+      await CardInteraction.create({
+        user_id: data.user_id,
+        card_id: cardId,
+        action: {
+          action: data.action,
+          recorded_at: received_at
+        },
+        course_item_ref: {
+          course_id: courseId,
+          unit_id: unitId,
+          section_id: sectionId
         }
-      },
-      course_item_ref: {
-        course_id: courseId,
-        unit_id: unitId,
-        section_id: sectionId
-      }
-    });
-  } else {
-    // TODO - remove extra logic when card_ref.EmbeddedDocRef is deprecated as we'll
-    // always have cardInter.course_item_ref.course_id populated
-    if (!cardInter.course_item_ref) {
-      if (data.course_id) {
-        courseId = fromGlobalId(data.course_id).id;
-      } else {
-        // Note - this stored ID maybe incorrect
-        courseId = cardInter.card_ref.EmbeddedDocRef.embedded_doc_refs.find(
-          item => item.level === 'course'
-        ).doc_id;
-      }
-    } else {
-      courseId = cardInter.course_item_ref.course_id;
+      });
+    } catch (err) {
+      logger.error(`Card Interaction insert failed ` + err);
+      return Promise.reject(Error(`Card Interaction insert failed`));
     }
+  } else {
+    // Get courseId for the Last Accessed update
+    courseId = cardInter.course_item_ref.course_id;
 
     // Override latest action
     cardInter.action = {
@@ -202,7 +176,7 @@ export const card_action = async data => {
       await cardInter.save();
     } catch (err) {
       logger.error(`in card_action cardInter.save ` + err);
-      return Promise.reject(`Error saving card_interaction document`);
+      return Promise.reject(`Error saving Card Interaction document`);
     }
   }
 

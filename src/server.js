@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import mongoose from 'mongoose';
 import http from 'http';
 import WebSocket from 'ws';
@@ -7,6 +6,7 @@ import config from './config';
 import handlers from './ws_handlers';
 import { logger } from './utils/logger';
 import User from './db-models/user-model';
+import { stringify } from 'flatted/cjs';
 
 let wsServer;
 
@@ -39,12 +39,10 @@ function startWSServer(callback) {
 
   const wsApp = express();
 
-  wsApp.use(cors({ origin: config.corsorigin, credentials: true }));
-  // wsApp.use(bodyParser.urlencoded({ extended: true }));
-  // wsApp.use(bodyParser.json());
-
   wsServer = http.createServer(wsApp);
-  const wss = new WebSocket.Server({ server: wsServer });
+  const wss = new WebSocket.Server({
+    server: wsServer
+  });
 
   wss.on('connection', handlers);
 

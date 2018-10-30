@@ -1,13 +1,13 @@
 import Course from '../db-models/course-model';
 import { logger } from '../utils/logger';
 
-export const fetchCardRefByCourseUnitCardId = async (
+export const fetchCourseItemRefByCourseUnitCardId = async (
   courseId,
   unitId,
   //  sectionId,
   cardId
 ) => {
-  logger.debug(`in fetchCardRefByCourseUnitCardId`);
+  logger.debug(`in fetchCourseItemRefByCourseUnitCardId`);
   let array = [];
   let selectFields = {};
 
@@ -55,7 +55,6 @@ export const fetchCardRefByCourseUnitCardId = async (
   array.push({
     $project: {
       ...selectFields,
-      card_ref: '$cards.card_ref',
       course_item_ref: '$cards.course_item_ref'
     }
   });
@@ -63,8 +62,8 @@ export const fetchCardRefByCourseUnitCardId = async (
   try {
     const result = await Course.aggregate(array).exec();
   } catch (err) {
-    logger.error(`in fetchCardRefByCourseUnitCardId ` + err);
+    logger.error(`in fetchCourseItemRefByCourseUnitCardId ` + err);
     return null;
   }
-  return result.length > 0 ? result[0] : {};
+  return result.length > 0 ? result[0] : null;
 };

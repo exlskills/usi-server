@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import EmbeddedDocRefSchema from './embedded-doc-ref-model';
 import CardActionSchema from './card-action-model';
 import CourseItemRefSchema from './course-item-ref-model';
 
@@ -19,11 +18,6 @@ const CardInteractionSchema = new mongoose.Schema(
       type: String,
       required: true,
       index: true
-    },
-    // TODO - deprecate after moving
-    card_ref: {
-      type: EmbeddedDocRefSchema,
-      required: true
     },
     course_item_ref: {
       type: CourseItemRefSchema
