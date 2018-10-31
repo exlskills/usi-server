@@ -8,15 +8,18 @@ import { jwtpublic_key } from '.././config';
 export default (ws, req) => {
   logger.debug(`WS =======>> On Connect ` + JSON.stringify(req.headers));
 
-  ws.on('message', message => {
+  ws.on('message', async message => {
     logger.debug(`WS =======>> req headers cookie  ` + req.headers.cookie);
     const viewer = getViewer(req);
     logger.debug(` viewer ` + JSON.stringify(viewer));
 
     // TODO exit if viewer is null
 
-    // Not waiting as nothing is acknowledged back to the sender
-    process_message(message, viewer);
+    try {
+      await process_message(message, viewer);
+    } catch (notInterested) {
+      logger.debug(`catch-all ` + notInterested);
+    }
   });
 
   ws.on(
@@ -88,8 +91,8 @@ const getViewer = req => {
 
   let tokenString;
   for (let cookieElem of cookieElems) {
-    if (cookieElem.startsWith('token=')) {
-      tokenString = cookieElem.substring(6);
+    if (cookieElem.trim().startsWith('token=')) {
+      tokenString = cookieElem.trim().substring(6);
       break;
     }
   }
@@ -108,7 +111,6 @@ const getViewer = req => {
     return null;
   }
 
-  logger.info(`==== got viewer`);
   return {
     user_id: decoded.user_id,
     locale: decoded.locale
