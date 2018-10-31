@@ -91,16 +91,12 @@ export const card_action = async (data, viewer) => {
   }
 
   if (viewer && viewer.user_id) {
+    // NOTE: if no viewer - this function should not be called
     if (viewer.user_id !== data.user_id) {
-      logger.error(
-        `user IDs don't match ` + viewer.user_id + ` ` + data.user_id
+      return Promise.reject(
+        Error(`user IDs don't match ` + viewer.user_id + ` ` + data.user_id)
       );
-      // TODO - exit
-    } else {
-      logger.debug(`user IDs match`);
     }
-  } else {
-    logger.debug(`viewer not provided`);
   }
 
   const received_at = new Date();

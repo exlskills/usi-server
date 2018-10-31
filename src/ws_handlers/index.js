@@ -13,12 +13,15 @@ export default (ws, req) => {
     const viewer = getViewer(req);
     logger.debug(` viewer ` + JSON.stringify(viewer));
 
-    // TODO exit if viewer is null
+    if (!viewer) {
+      logger.error(`no viewer`);
+      return;
+    }
 
     try {
       await process_message(message, viewer);
-    } catch (notInterested) {
-      logger.debug(`catch-all ` + notInterested);
+    } catch (alreadyRecorded) {
+      logger.debug(`catch-all ` + alreadyRecorded);
     }
   });
 
@@ -51,7 +54,7 @@ const process_message = async (message, viewer) => {
           break;
           */
         case WS_EVENTS.cardAction:
-          card_action(msgObj.payload.data, viewer);
+          await card_action(msgObj.payload.data, viewer);
           break;
         default:
           logger.error('Invalid event type:', message.payload.event);
@@ -68,24 +71,14 @@ const process_message = async (message, viewer) => {
 const getViewer = req => {
   logger.debug(`in getViewer`);
 
-  if (!req) {
-    logger.info(`no request`);
-    return null;
-  }
-
-  if (!req.headers) {
-    logger.info(`no headers ` + req);
-    return null;
-  }
-
-  if (!req.headers.cookie) {
-    logger.info(`no cookie ` + req.headers);
+  if (!req || !req.headers || !req.headers.cookie) {
+    logger.error(`no request-header-cookie provided`);
     return null;
   }
 
   const cookieElems = req.headers.cookie.split(';');
   if (!cookieElems || cookieElems.length < 1) {
-    logger.info(`split failed ` + req.headers.cookie);
+    logger.error(`split failed ` + req.headers.cookie);
     return null;
   }
 
@@ -97,7 +90,7 @@ const getViewer = req => {
     }
   }
   if (!tokenString) {
-    logger.info(`token= not in splits ` + req.headers.cookie);
+    logger.error(`token= not in splits ` + req.headers.cookie);
     return null;
   }
   logger.debug(`token string ` + tokenString);
@@ -107,7 +100,7 @@ const getViewer = req => {
       algorithm: 'RS256'
     });
   } catch (err) {
-    logger.info(`token verification error ` + err);
+    logger.error(`token verification error ` + err);
     return null;
   }
 
