@@ -64,14 +64,25 @@ const process_message = async (message, viewer) => {
 
 const getViewer = req => {
   logger.debug(`in getViewer`);
-  if (!req || !req.headers || !req.headers.cookie) {
-    logger.info(`token not provided`);
+
+  if (!req) {
+    logger.info(`no request`);
+    return null;
+  }
+
+  if (!req.headers) {
+    logger.info(`no headers ` + req);
+    return null;
+  }
+
+  if (!req.headers.cookie) {
+    logger.info(`no cookie ` + req.headers);
     return null;
   }
 
   const cookieElems = req.headers.cookie.split(';');
   if (!cookieElems || cookieElems.length < 1) {
-    logger.info(`token not provided`);
+    logger.info(`split failed ` + req.headers.cookie);
     return null;
   }
 
@@ -83,7 +94,7 @@ const getViewer = req => {
     }
   }
   if (!tokenString) {
-    logger.info(`token not provided`);
+    logger.info(`token= not in splits ` + req.headers.cookie);
     return null;
   }
   logger.debug(`token string ` + tokenString);
@@ -97,6 +108,7 @@ const getViewer = req => {
     return null;
   }
 
+  logger.info(`==== got viewer`);
   return {
     user_id: decoded.user_id,
     locale: decoded.locale

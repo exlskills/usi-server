@@ -90,11 +90,17 @@ export const card_action = async (data, viewer) => {
     return Promise.reject(Error('card_id and user_id are required'));
   }
 
-  if (viewer.user_id !== data.user_id) {
-    logger.error(`user IDs don't match ` + viewer.user_id + ` ` + data.user_id);
-    // TODO - exit
+  if (viewer && viewer.user_id) {
+    if (viewer.user_id !== data.user_id) {
+      logger.error(
+        `user IDs don't match ` + viewer.user_id + ` ` + data.user_id
+      );
+      // TODO - exit
+    } else {
+      logger.debug(`user IDs match`);
+    }
   } else {
-    logger.debug(`user IDs match`);
+    logger.debug(`viewer not provided`);
   }
 
   const received_at = new Date();
